@@ -16,8 +16,8 @@ This script for OBS displays live viewer counts on YouTube and Twitch, as well a
 
 ## Installation
 ### Prerequisites
-- OBS installed.
-- Python installed and added to PATH.
+- OBS 29 installed.
+- Python 3.10 installed and added to PATH.
 - Active accounts on YouTube and Twitch.
 
 ### Setup Guide
