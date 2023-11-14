@@ -1,4 +1,4 @@
-# OBS-channel-stats
+# OBS-viewer-subscriber-counter-Youtube-and-Twitch
 
 ![Interface of OBS-channel-stats](interface.png?raw=true)
 
