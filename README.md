@@ -25,9 +25,11 @@ This script requires the `requests` module, which is not included in the standar
 
 1. Open your command prompt (cmd) on Windows or Terminal on macOS/Linux.
 2. Type the following command and press Enter:
+
 `pip install requests`
 
 If pip is not recognized, you can try use the Python executable to install the package like so:
+
 `python3 -m pip install requests`
 
 ### Setup Guide
