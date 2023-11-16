@@ -20,7 +20,7 @@ This script for OBS displays live viewer counts on YouTube and Twitch, as well a
 - [Python 3.10.6](https://www.python.org/downloads/release/python-3106/) installed and added to PATH.
 - Active accounts on YouTube and Twitch.
 
-## Additional Python Dependencies
+### Additional Python Dependencies
 This script requires the `requests` module, which is not included in the standard Python library. To install `requests`, follow these steps:
 
 1. Open your command prompt (cmd) on Windows (Terminal)
