@@ -27,7 +27,7 @@ This script requires the `requests` module, which is not included in the standar
 2. Type the following command and press Enter:
 `pip install requests`
 
-If pip is not recognized, you can try specifying the full path to the pip executable or use the Python executable to install the package like so:
+If pip is not recognized, you can try use the Python executable to install the package like so:
 `python3 -m pip install requests`
 
 ### Setup Guide
