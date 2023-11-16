@@ -23,7 +23,7 @@ This script for OBS displays live viewer counts on YouTube and Twitch, as well a
 ## Additional Python Dependencies
 This script requires the `requests` module, which is not included in the standard Python library. To install `requests`, follow these steps:
 
-1. Open your command prompt (cmd) on Windows or Terminal on macOS/Linux.
+1. Open your command prompt (cmd) on Windows (Terminal)
 2. Type the following command and press Enter:
 
 `pip install requests`
