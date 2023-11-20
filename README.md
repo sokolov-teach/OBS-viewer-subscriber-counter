@@ -3,13 +3,14 @@
 ![Interface of OBS-channel-stats](interface.png?raw=true)
 
 ## Overview
-This script for OBS displays live viewer counts on YouTube and Twitch, as well as the total number of YouTube subscribers and Twitch followers. It was originally developed for a client but I hope it will be useful for other people too.
+This OBS script displays live viewer counts on YouTube and Twitch, as well as the total number of YouTube subscribers and Twitch followers. It was originally developed for a client but has been expanded and improved for broader use.
 
 **Note**: The YouTube subscriber count may not be exact for channels with over 1,000 subscribers, as the count is rounded due to limitations in Google's API. (because Google takes your data, but doesn't want to provide it back)
 
 ## Features
-- Live total viewer count from YouTube and Twitch.
-- Live total subscriber count from YouTube and follower count from Twitch.
+- Live viewer count from YouTube and Twitch.
+- Subscriber count from YouTube and follower count from Twitch.
+- Separate or combined text sources for YouTube and Twitch statistics.
 
 ## Limitations
 - Due to YouTube API rate limits, care should be taken with the frequency of API calls. Google provides 10,000 points daily. A search call costs 100 points, and regular updates for viewers and subscribers consume 2 points per minute.
@@ -18,19 +19,7 @@ This script for OBS displays live viewer counts on YouTube and Twitch, as well a
 ### Prerequisites
 - [OBS 29](https://obsproject.com/) installed.
 - [Python 3.10.6](https://www.python.org/downloads/release/python-3106/) installed and added to PATH.
-- Active accounts on YouTube and Twitch.
-
-### Additional Python Dependencies
-This script requires the `requests` module, which is not included in the standard Python library. To install `requests`, follow these steps:
-
-1. Open your command prompt (cmd) on Windows (Terminal)
-2. Type the following command and press Enter:
-
-`pip install requests`
-
-If pip is not recognized, you can try use the Python executable to install the package like so:
-
-`python3 -m pip install requests`
+- Active accounts on YouTube/Twitch.
 
 ### Setup Guide
 #### YouTube
@@ -42,7 +31,7 @@ If pip is not recognized, you can try use the Python executable to install the p
 2. **API Key and Secret**: Follow this tutorial by CaptZorro: [Twitch API Key Tutorial](https://www.youtube.com/watch?v=dJwrFcBKvJw).
 
 ### Script Configuration
-1. Create two Text sources in your OBS scene for viewers and subscribers.
+1. Create text sources in OBS for YouTube and Twitch viewers and subscribers.
 2. In OBS, go to `Tools` > `Scripts` and add the script.
 3. Configure the script settings with your API keys, channel IDs, and text sources.
 4. Start your stream on Youtube and Twitch.
@@ -66,6 +55,7 @@ Your suggestions and contributions are welcome! Please feel free to leave featur
 
 ## Acknowledgements
 - Thanks to [WebbyFan](https://www.youtube.com/watch?v=N18czV5tj5o) and [CaptZorro](https://www.youtube.com/watch?v=dJwrFcBKvJw) for their tutorials on API key setup.
+- A big thanks to [hmeneses](https://obsproject.com/forum/members/hmeneses.227186/) and his [Youtube chat and channel updater](https://obsproject.com/forum/resources/youtube-chat-and-channel-updater.894/) for the idea of using `urllib.request` instead of `requests`
 
 ## Contact
 For support or inquiries, please open an issue on GitHub or contact me at sokolov.teach@gmail.com

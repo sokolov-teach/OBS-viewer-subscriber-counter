@@ -3,7 +3,9 @@
 # Description: This script integrates with OBS to display live viewers and subscriber counts from Twitch and YouTube.
 
 import obspython as obs
-import requests
+import urllib.request
+import urllib.parse
+import json
 import time
 import threading
 import logging
@@ -17,6 +19,12 @@ TWITCH_CLIENT_SECRET = ""
 TWITCH_CHANNEL_ID = ""
 YOUTUBE_CHANNEL_ID = ""
 YOUTUBE_STREAM_ID = ""
+
+# Global variables for the text sources
+source_youtube_viewers = ""
+source_twitch_viewers = ""
+source_youtube_subs = ""
+source_twitch_subs = ""
 
 #Updates every 60 seconds. Do not change this! If you do, you can run out of Youtube API points very quickly!
 update_frequency = 60
@@ -46,98 +54,145 @@ def log(*args, **kwargs):
     logging.info(*args, **kwargs)
 
 def script_description():
-    return "Twitch and Youtube Viewers and Subscribers counter"
+    return "Twitch and Youtube Viewers and Subscribers counter. If you want to output the total number of subscribers/viewers from both platforms, assign them both to a one text source."
 
 # YOUTUBE PART
 def fetch_youtube_live_stream_id(channel_id):
     global YOUTUBE_STREAM_ID
+    
+    if not YOUTUBE_API_KEY:
+        log('YouTube API key is missing. Skipping fetch_youtube_live_stream_id.')
+        return 0
+
     url = f'https://www.googleapis.com/youtube/v3/search?part=id&eventType=live&type=video&channelId={channel_id}&key={YOUTUBE_API_KEY}'
-    response = requests.get(url)
-    data = response.json()
-    log(f'fetch_youtube_live_stream_id: {data}')
-    items = data.get('items', [])
-    if items:
-        YOUTUBE_STREAM_ID = items[0]['id']['videoId']
-        log(f'Ongoing YouTube live stream found: {YOUTUBE_STREAM_ID}')
-    else:
-        log('No ongoing live stream found on YouTube channel.')
+    
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+            log(f'fetch_youtube_live_stream_id: {data}')
+            items = data.get('items', [])
+            if items:
+                YOUTUBE_STREAM_ID = items[0]['id']['videoId']
+                log(f'Ongoing YouTube live stream found: {YOUTUBE_STREAM_ID}')
+            else:
+                log('No ongoing live stream found on YouTube channel.')
+    except urllib.error.URLError as e:
+        log(f'Error in fetch_youtube_live_stream_id: {e.reason}')
 
 def get_youtube_viewers():
-    if YOUTUBE_STREAM_ID:
-        url = f'https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={YOUTUBE_STREAM_ID}&key={YOUTUBE_API_KEY}'
-        response = requests.get(url)
-        data = response.json()
-        log(f'get_youtube_viewers: {data}')
-        items = data.get('items', [])
-        if items:
-            return int(items[0]['liveStreamingDetails']['concurrentViewers'])
+    if not YOUTUBE_API_KEY:
+        log('YouTube API key is missing. Skipping fetch_youtube_live_stream_id.')
         return 0
+
+    url = f'https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={YOUTUBE_STREAM_ID}&key={YOUTUBE_API_KEY}'
+
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_youtube_viewers: {data}')
+            items = data.get('items', [])
+            if items:
+                return int(items[0]['liveStreamingDetails']['concurrentViewers'])
+            return 0
+    except urllib.error.URLError as e:
+        log(f'Error in get_youtube_viewers: {e.reason}')
+        return 0
+
     log('No valid YouTube live stream ID available')
     return 0
 
 def get_youtube_subscribers_count():
+    if not YOUTUBE_API_KEY:
+        log('YouTube API key is missing. Skipping fetch_youtube_live_stream_id.')
+        return 0
+
     url = f'https://www.googleapis.com/youtube/v3/channels?part=statistics&id={YOUTUBE_CHANNEL_ID}&key={YOUTUBE_API_KEY}'
-    response = requests.get(url)
-    data = response.json()
-    log(f'get_youtube_subscribers_count: {data}')
-    items = data.get('items', [])
-    if items:
-        return int(items[0]['statistics']['subscriberCount'])
-    return 0
+
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_youtube_subscribers_count: {data}')
+            items = data.get('items', [])
+            if items:
+                return int(items[0]['statistics']['subscriberCount'])
+            return 0
+    except urllib.error.URLError as e:
+        log(f'Error in get_youtube_subscribers_count: {e.reason}')
+        return 0
 
 # TWITCH PART
 def get_twitch_oauth_token(client_id, client_secret):
+    if not client_id or not client_secret:
+        log('Twitch Client ID or Client Secret is missing. Skipping get_twitch_oauth_token.')
+        return None
+
     url = 'https://id.twitch.tv/oauth2/token'
     params = {
         'client_id': client_id,
         'client_secret': client_secret,
         'grant_type': 'client_credentials'
     }
-    response = requests.post(url, params=params)
-    data = response.json()
-    log(f'get_twitch_oauth_token: {data}')
-
-    if data:
-        return data.get('access_token', None)
-
-    log('failed to obtain Twitch OAuth Token')
-    return None
+    data = urllib.parse.urlencode(params).encode()
+    req = urllib.request.Request(url, data=data, method='POST')
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_twitch_oauth_token: {data}')
+            return data.get('access_token', None)
+    except urllib.error.URLError as e:
+        log(f'Error in get_twitch_oauth_token: {e.reason}')
+        return None
 
 def get_broadcaster_id(client_id, oauth_token, channel_name):
+    if not client_id or not oauth_token:
+        log('Twitch Client ID or OAuth token is missing. Skipping get_broadcaster_id.')
+        return None
+
     headers = {
         'Client-ID': client_id,
         'Authorization': f'Bearer {oauth_token}'
     }
-    url = f'https://api.twitch.tv/helix/users?login={channel_name}'
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    log(f'get_broadcaster_id (twitch): {data}')
-
-    users = data.get('data', [])
-    if users:
-        return users[0].get('id')
-    log('failed to obtain broadcaster id')
-    return None
+    req = urllib.request.Request(
+        f'https://api.twitch.tv/helix/users?login={channel_name}', 
+        headers=headers
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_broadcaster_id (twitch): {data}')
+            users = data.get('data', [])
+            if users:
+                return users[0].get('id')
+            return None
+    except urllib.error.URLError as e:
+        log(f'Error in get_broadcaster_id: {e.reason}')
+        return None
 
 def get_twitch_viewers_count(client_id, oauth_token, user_login):
-    url = 'https://api.twitch.tv/helix/streams'
+    if not client_id or not oauth_token:
+        log('Twitch Client ID or OAuth token is missing. Skipping get_broadcaster_id.')
+        return None
+
     headers = {
         'Client-ID': client_id,
         'Authorization': f'Bearer {oauth_token}'
     }
-    params = {
-        'user_login': user_login
-    }
-    response = requests.get(url, headers=headers, params=params)
-    data = response.json()
-    log(f'get_twitch_viewers_count: {data}')
-
-    streams = data.get('data', [])
-    if streams:
-        return streams[0].get('viewer_count', 0)
-
-    log('no ongoing twitch live stream')
-    return 0  # Return 0 if the channel is offline or not found
+    params = urllib.parse.urlencode({'user_login': user_login})
+    req = urllib.request.Request(
+        f'https://api.twitch.tv/helix/streams?{params}', 
+        headers=headers
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_twitch_viewers_count: {data}')
+            streams = data.get('data', [])
+            if streams:
+                return streams[0].get('viewer_count', 0)
+            return 0
+    except urllib.error.URLError as e:
+        log(f'Error in get_twitch_viewers_count: {e.reason}')
+        return 0
 
 def get_twitch_viewers():
     if twitch_oauth_token:
@@ -149,12 +204,18 @@ def get_twitch_followers_count(client_id, oauth_token, broadcaster_id):
         'Client-ID': client_id,
         'Authorization': f'Bearer {oauth_token}'
     }
-    url = f'https://api.twitch.tv/helix/channels/followers?broadcaster_id={broadcaster_id}'
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    log(f'get_twitch_followers_count: {data}')
-
-    return data.get('total', 0)
+    req = urllib.request.Request(
+        f'https://api.twitch.tv/helix/channels/followers?broadcaster_id={broadcaster_id}', 
+        headers=headers
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            log(f'get_twitch_followers_count: {data}')
+            return data.get('total', 0)
+    except urllib.error.URLError as e:
+        log(f'Error in get_twitch_followers_count: {e.reason}')
+        return 0
 
 def get_twitch_followers():
     global twitch_oauth_token
@@ -167,13 +228,19 @@ def get_twitch_followers():
 def script_properties():
     props = obs.obs_properties_create()
 
-    # Add text source dropdown for viewers
-    p_viewers = obs.obs_properties_add_list(props, "source_viewers", "Text Source for Viewers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-    obs.obs_property_list_add_string(p_viewers, "[No text source]", "[No text source]")
+    # Text Source dropdowns for YouTube and Twitch viewers
+    p_youtube_viewers = obs.obs_properties_add_list(props, "source_youtube_viewers", "Text Source for YouTube Viewers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+    obs.obs_property_list_add_string(p_youtube_viewers, "[No text source]", "[No text source]")
+
+    p_twitch_viewers = obs.obs_properties_add_list(props, "source_twitch_viewers", "Text Source for Twitch Viewers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+    obs.obs_property_list_add_string(p_twitch_viewers, "[No text source]", "[No text source]")
     
-    # Add text source dropdown for subscribers
-    p_subs = obs.obs_properties_add_list(props, "source_subs", "Text Source for Subscribers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
-    obs.obs_property_list_add_string(p_subs, "[No text source]", "[No text source]")
+    # Text Source dropdowns for YouTube subscribers and Twitch followers
+    p_youtube_subs = obs.obs_properties_add_list(props, "source_youtube_subs", "Text Source for YouTube Subscribers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+    obs.obs_property_list_add_string(p_youtube_subs, "[No text source]", "[No text source]")
+
+    p_twitch_subs = obs.obs_properties_add_list(props, "source_twitch_subs", "Text Source for Twitch Followers", obs.OBS_COMBO_TYPE_EDITABLE, obs.OBS_COMBO_FORMAT_STRING)
+    obs.obs_property_list_add_string(p_twitch_subs, "[No text source]", "[No text source]")
 
     # Populate the lists with Text Sources
     sources = obs.obs_enum_sources()
@@ -182,8 +249,10 @@ def script_properties():
             source_id = obs.obs_source_get_unversioned_id(source)
             if source_id in ("text_gdiplus", "text_ft2_source"):
                 name = obs.obs_source_get_name(source)
-                obs.obs_property_list_add_string(p_viewers, name, name)
-                obs.obs_property_list_add_string(p_subs, name, name)
+                obs.obs_property_list_add_string(p_youtube_viewers, name, name)
+                obs.obs_property_list_add_string(p_twitch_viewers, name, name)
+                obs.obs_property_list_add_string(p_youtube_subs, name, name)
+                obs.obs_property_list_add_string(p_twitch_subs, name, name)
         obs.source_list_release(sources)
     
     # Other API information
@@ -198,37 +267,50 @@ def script_properties():
     
     return props
 
+
+# Additional function that updates text source. Used in update()
+def update_text_source(source_name, text):
+    source_obj = obs.obs_get_source_by_name(source_name)
+    if source_obj:
+        settings = obs.obs_data_create()
+        obs.obs_data_set_string(settings, "text", text)
+        obs.obs_source_update(source_obj, settings)
+        obs.obs_data_release(settings)
+        obs.obs_source_release(source_obj)
+
 def update():
-    youtube_viewers = get_youtube_viewers()
-    twitch_viewers = get_twitch_viewers()
-    twitch_followers = get_twitch_followers()
-    youtube_subscribers = get_youtube_subscribers_count()
+    youtube_viewers = get_youtube_viewers() if YOUTUBE_API_KEY else 0
+    twitch_viewers = get_twitch_viewers() if TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET else 0
+    youtube_subscribers = get_youtube_subscribers_count() if YOUTUBE_API_KEY else 0
+    twitch_followers = get_twitch_followers() if TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET else 0
+
     log(f'Youtube Viewers: {youtube_viewers}')
     log(f'Twitch Viewers: {twitch_viewers}')
     log(f'YouTube Subscribers: {youtube_subscribers}')
     log(f'Twitch Followers: {twitch_followers}')
     log(f'Active threads: {threading.active_count()}')
 
-    total_viewers = twitch_viewers + youtube_viewers
-    total_followers = youtube_subscribers + twitch_followers
+    # Check if YouTube and Twitch viewers sources are the same or not
+    # Update them based on what was fetched
+    if source_youtube_viewers == source_twitch_viewers and source_youtube_viewers != "":
+        total_viewers = youtube_viewers + twitch_viewers
+        update_text_source(source_youtube_viewers, str(total_viewers))
+    else:
+        if source_youtube_viewers != "":
+            update_text_source(source_youtube_viewers, str(youtube_viewers))
+        if source_twitch_viewers != "":
+            update_text_source(source_twitch_viewers, str(twitch_viewers))
 
-    # Update viewers count
-    source_viewers_obj = obs.obs_get_source_by_name(source_viewers)
-    if source_viewers_obj:
-        settings = obs.obs_data_create()
-        obs.obs_data_set_string(settings, "text", f"{total_viewers}")
-        obs.obs_source_update(source_viewers_obj, settings)
-        obs.obs_data_release(settings)
-        obs.obs_source_release(source_viewers_obj)
-
-    # Update subscribers count
-    source_subs_obj = obs.obs_get_source_by_name(source_subs)
-    if source_subs_obj:
-        settings = obs.obs_data_create()
-        obs.obs_data_set_string(settings, "text", f"{total_followers}")
-        obs.obs_source_update(source_subs_obj, settings)
-        obs.obs_data_release(settings)
-        obs.obs_source_release(source_subs_obj)
+    # Check if YouTube subsribers and Twitch followers are the same or not
+    # Update them based on what was fetched
+    if source_youtube_subs == source_twitch_subs and source_youtube_subs != "":
+        total_subs = youtube_subscribers + twitch_followers
+        update_text_source(source_youtube_subs, str(total_subs))
+    else:
+        if source_youtube_viewers != "":
+            update_text_source(source_youtube_subs, str(youtube_subscribers))
+        if source_twitch_viewers != "":
+            update_text_source(source_twitch_subs, str(twitch_followers))
 
 def threaded_update():
     global stop_thread
@@ -260,11 +342,12 @@ def start_button_pressed(props, prop):
     global broadcaster_id
     log("Start button pressed")
 
-    if YOUTUBE_CHANNEL_ID:
+    if YOUTUBE_CHANNEL_ID and YOUTUBE_API_KEY:
         fetch_youtube_live_stream_id(YOUTUBE_CHANNEL_ID)
 
-    twitch_oauth_token = get_twitch_oauth_token(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
-    broadcaster_id = get_broadcaster_id(TWITCH_CLIENT_ID, twitch_oauth_token, TWITCH_CHANNEL_ID)
+    if TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET:
+            twitch_oauth_token = get_twitch_oauth_token(TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)
+            broadcaster_id = get_broadcaster_id(TWITCH_CLIENT_ID, twitch_oauth_token, TWITCH_CHANNEL_ID)
     
     # If there is an existing thread, stop it
     if update_thread is not None and update_thread.is_alive():
@@ -284,14 +367,18 @@ def stop_button_pressed(props, prop):
     log("Stop button pressed")
     stop_thread = True
 
+
+# OBS internal: called when the script’s settings (if any) have been changed by the user.
 def script_update(settings):
     global YOUTUBE_API_KEY
     global TWITCH_CLIENT_ID
     global TWITCH_CLIENT_SECRET
     global YOUTUBE_CHANNEL_ID
     global TWITCH_CHANNEL_ID
-    global source_viewers
-    global source_subs
+    global source_youtube_viewers
+    global source_twitch_viewers
+    global source_youtube_subs
+    global source_twitch_subs
     
     # Read user-defined settings
     YOUTUBE_API_KEY = obs.obs_data_get_string(settings, "YOUTUBE_API_KEY")
@@ -300,5 +387,7 @@ def script_update(settings):
     YOUTUBE_CHANNEL_ID = obs.obs_data_get_string(settings, "YOUTUBE_CHANNEL_ID")
     TWITCH_CHANNEL_ID = obs.obs_data_get_string(settings, "TWITCH_CHANNEL_ID")
 
-    source_viewers = obs.obs_data_get_string(settings, "source_viewers")
-    source_subs = obs.obs_data_get_string(settings, "source_subs")
+    source_youtube_viewers = obs.obs_data_get_string(settings, "source_youtube_viewers")
+    source_twitch_viewers = obs.obs_data_get_string(settings, "source_twitch_viewers")
+    source_youtube_subs = obs.obs_data_get_string(settings, "source_youtube_subs")
+    source_twitch_subs = obs.obs_data_get_string(settings, "source_twitch_subs")
