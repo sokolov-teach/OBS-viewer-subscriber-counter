@@ -34,6 +34,7 @@ This OBS script displays live viewer counts on YouTube and Twitch, as well as th
 1. Create text sources in OBS for YouTube and Twitch viewers and subscribers.
 2. In OBS, go to `Tools` > `Scripts` and add the script.
 3. Configure the script settings with your API keys, channel IDs, and text sources.
+**Important**: After adding or modifying text sources in OBS, you need to **reload the script** for the changes to be reflected in the dropdown lists within the script settings. This can be done by right-clicking the script in the `Scripts` window and selecting `Reload`.
 4. Start your stream on Youtube and Twitch.
 5. Click the `START` button to begin fetching data.
 

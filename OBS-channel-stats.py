@@ -267,7 +267,6 @@ def script_properties():
     
     return props
 
-
 # Additional function that updates text source. Used in update()
 def update_text_source(source_name, text):
     source_obj = obs.obs_get_source_by_name(source_name)
