@@ -306,9 +306,9 @@ def update():
         total_subs = youtube_subscribers + twitch_followers
         update_text_source(source_youtube_subs, str(total_subs))
     else:
-        if source_youtube_viewers != "":
+        if source_youtube_subs != "":
             update_text_source(source_youtube_subs, str(youtube_subscribers))
-        if source_twitch_viewers != "":
+        if source_twitch_subs != "":
             update_text_source(source_twitch_subs, str(twitch_followers))
 
 def threaded_update():
